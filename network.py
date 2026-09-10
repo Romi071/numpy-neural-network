@@ -10,19 +10,6 @@ def init_params():
     b2 = np.random.normal(0, 0.01, (10, 1))
     return W1,b1,W2,b2
 
-#Transform a raw pixel data vector (X) into a probability distribution vector (A2)
-def forward_prop(W1, b1, W2, b2, X):
-    #1st affine transform
-    Z1 = np.matmul(W1, X) + b1
-    #Non-linear ReLU function 
-    A1 = np.maximum(0, Z1)
-    #2nd affine transform
-    Z2 = np.matmul(W2, A1) + b2
-    #Softmax function to transform elements into probabilities
-    A2 = np.exp(Z2) / np.sum(np.exp(Z2), axis=0, keepdims=True)
-    return Z1, A1, Z2, A2
-
-
 #Take an array of true digit labels and turn it into a one-hot vector array (Y)
 def labels_translator(labels):
     hot_list = []
@@ -33,7 +20,19 @@ def labels_translator(labels):
     Y = np.hstack(hot_list)
     return Y
 
-#Backward pass, mathematical computations for the gradient of the loss function
+#Transform a raw pixel data vector (X) into a probability distribution vector (A2)
+def forward_prop(W1, b1, W2, b2, X):
+    #1st affine transform
+    Z1 = np.matmul(W1, X) + b1
+    #Non-linear ReLU function 
+    A1 = np.maximum(0, Z1)
+    #2nd affine transform
+    Z2 = np.matmul(W2, A1) + b2
+    #Softmax function to transform elements into probabilities
+    A2 = np.exp(Z2) / np.sum(np.exp(Z2), axis=0, keepdims=True)
+    return Z1, A1, A2
+
+#Backward pass, mathematical computations for the weight gradients of the loss function
 def loss_gradient(W2, Z1, A1, A2, X, Y):
     #Total number of images in our current batch, value used to average the error
     m = len(Y[0])
@@ -41,23 +40,48 @@ def loss_gradient(W2, Z1, A1, A2, X, Y):
     dZ2 = A2 - Y
     #Layer 2 weight gradients (dW2): contribution of W2 to the error, calculated as output error times W2's inputs (A1). Shape: (10, 64)
     dW2 = 1/m * np.matmul(dZ2, A1.T)
-    #Layer 1 hidden error (dZ1): output error routed back to the Z1 layer using W2 transposed. Shape: (64, m)
+    #Layer 1 hidden error (dZ1): output error routed back to the Z1 layer (higher dim.) using W2 transposed. Shape: (64, m)
     #(Z1 > 0) boolean shortcut representing ReLU derivative. Filters inactive nodes (<0) during the forward pass
     dZ1 = np.matmul(W2.T, dZ2) * (Z1 > 0)
-    #Layer 1 weight gradients (dW1): contribution of W1 to the error, calculated as hidden error times input pixels (X). Shape: (64, 784)
+    #Layer 1 weight gradients (dW1): contribution of W1 to the error, calculated as hidden error (dZ1) times input pixels (X). Shape: (64, 784)
     dW1 = 1/m * np.matmul(dZ1, X.T)
     #Bias gradients (db2, db1): sum of the errors for each node, obtained by summing horizontally (axis=1). Same shape as b2, b1.
     db2 = 1/m * np.sum(dZ2, axis=1, keepdims=True)
     db1 = 1/m * np.sum(dZ1, axis=1, keepdims=True)
-    return dZ2, dW2, dZ1, dW1, db2, db1
+    return dW2, dW1, db2, db1
+
+#Update the parameters in the direction of the gradient times a factor alpha
+def update_params(W1, dW1, b1, db1, W2, dW2, b2, db2, alpha):
+    W1 -= alpha * dW1
+    b1 -= alpha * db1
+    W2 -= alpha * dW2
+    b2 -= alpha * db2
+    return W1, b1, W2, b2
+
+#Train the network with a given database, X input is taken to be a massive data matrix
+def train_network(X, labels, alpha, iterations):
+    W1, b1, W2, b2 = init_params()
+    Y = labels_translator(labels)
+    success_rate = []
+    #Training loop
+    for _ in range(iterations):
+        #Slice X, Y into 1000 batches and go over them to train more effectively 
+        for k in range(1000):
+            Xi = X[:, k * X.shape[1] // 1000 : (k + 1) * X.shape[1] // 1000]
+            Yi = Y[:, k * Y.shape[1] // 1000 : (k + 1) * Y.shape[1] // 1000]
+            #Obtain the prob distribution, loss gradient and update the parameters accordingly
+            Z1, A1, A2 = forward_prop(W1, b1, W2, b2, Xi)
+            dW2, dW1, db2, db1 = loss_gradient(W2, Z1, A1, A2, Xi, Yi)
+            W1, b1, W2, b2 = update_params(W1, dW1, b1, db1, W2, dW2, b2, db2, alpha)
+            #Determine the networks's mean success rate for this batch
+            guess = np.argmax(A2, axis=0)
+            correct = np.array(labels[k * len(labels) // 1000 : (k+1) * len(labels) // 1000])
+            success_rate.append(np.mean(guess == correct))
+        #Print the mean success rate for every batch in this iteration to visualize learning
+        print(f"The network's success rate for this iteration was: {100 * np.mean(success_rate)}%")
+        success_rate = []
+    return W1, b1, W2, b2
 
 
-#Test
-#Init test parameters
-X = np.random.rand(784, 6)
-W1, b1, W2, b2 = init_params()
-labels = [7, 3, 5, 1, 9, 0]
-#Math tests
-Z1, A1, Z2, A2 = forward_prop(W1, b1, W2, b2, X)
-Y = labels_translator(labels)
-dZ2, dW2, dZ1, dW1, db2, db1 = loss_gradient(W2, Z1, A1, A2, X, Y)
+#Fetch the training data from a binary (ubyte) file:
+#with open("train-images.idx3-ubyte", "rb") as file:
