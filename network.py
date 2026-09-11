@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 #Define small random weight matrices and displacement vectors with the proper dimensions
 def init_params():
@@ -83,5 +84,25 @@ def train_network(X, labels, alpha, iterations):
     return W1, b1, W2, b2
 
 
-#Fetch the training data from a binary (ubyte) file:
-#with open("train-images.idx3-ubyte", "rb") as file:
+#Fetch the training data pixels from a binary (ubyte) file, reshape it into a 2D array and normalize it:
+with open("train-images.idx3-ubyte", "rb") as file:
+    binary_data = file.read()
+    train_data = np.frombuffer(binary_data, dtype=np.uint8, offset=16)
+    X = train_data.reshape((60000, 784)).T / 255
+#Fetch the training data labels from a binary (ubyte) file:
+with open("train-labels.idx1-ubyte", "rb") as file:
+    binary_labels = file.read()
+    train_labels = np.frombuffer(binary_labels, dtype=np.uint8, offset=8)
+
+
+"""
+#Optional binary image plotter
+print(train_labels[5687])
+plt.imshow(((X[:, 5687]).reshape((28, 28))))
+plt.show()
+"""
+
+#Set parameters and train
+alpha = 0.01
+iterations = 100
+W1, b1, W2, b2 = train_network(X, train_labels, alpha, iterations)
