@@ -81,6 +81,7 @@ def train_network(X, labels, alpha, iterations):
         #Print the mean success rate for every batch in this iteration to visualize learning
         print(f"The network's success rate for this iteration was: {100 * np.mean(success_rate)}%")
         success_rate = []
+    print(f"💪 Training Completed!")
     return W1, b1, W2, b2
 
 
@@ -96,7 +97,7 @@ with open("train-labels.idx1-ubyte", "rb") as file:
 
 
 """
-#Optional binary image plotter
+#Optional binary image plotter (change the integer index to check other images)
 print(train_labels[5687])
 plt.imshow(((X[:, 5687]).reshape((28, 28))))
 plt.show()
@@ -106,3 +107,19 @@ plt.show()
 alpha = 0.01
 iterations = 100
 W1, b1, W2, b2 = train_network(X, train_labels, alpha, iterations)
+
+#Fetch the test data pixels from a binary (ubyte) file, reshape it into a 2D array and normalize it:
+with open("t10k-images.idx3-ubyte", "rb") as file:
+    binary_test_data = file.read()
+    test_data = np.frombuffer(binary_test_data, dtype=np.uint8, offset=16)
+    X_test = test_data.reshape((10000, 784)).T / 255
+#Fetch the test data labels from a binary (ubyte) file:
+with open("t10k-labels.idx1-ubyte", "rb") as file:
+    binary_test_labels = file.read()
+    test_labels = np.frombuffer(binary_test_labels, dtype=np.uint8, offset=8)
+
+#Perform the test using the trained params on 10k provided new images and print success rate
+Z1, A1, A2 = forward_prop(W1, b1, W2, b2, X_test)
+guess = np.argmax(A2, axis=0)
+correct_rate = np.mean(guess == test_labels)
+print(f"✅ The trained network's correct rate for this test data was: {100 * correct_rate}%")
