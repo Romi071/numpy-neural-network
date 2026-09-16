@@ -105,7 +105,7 @@ plt.show()
 
 #Set parameters and train
 alpha = 0.01
-iterations = 10
+iterations = 100
 W1, b1, W2, b2 = train_network(X, train_labels, alpha, iterations)
 
 #Fetch the test data pixels from a binary (ubyte) file, reshape it into a 2D array and normalize it:
@@ -128,8 +128,8 @@ print(f"✅ The trained network's correct rate for this test data was: {100 * co
 while True:
     choice = input("Do you want to save these trained network parameters? (input: Y/N): ")
     if choice == "Y" or choice == "y":
-        np.savez("trained_params", W1=W1, b1=b1, W2=W2, b2=b2)
-        print("The parameters were successfully saved into 'trained_params.npz'")
+        np.savez("trained_model", W1=W1, b1=b1, W2=W2, b2=b2)
+        print("The parameters were successfully saved into 'trained_model.npz'")
         break
     elif choice == "N" or choice == "n":
         print("The parameters were not saved")
